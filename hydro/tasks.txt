@@ -1,0 +1,94 @@
+FIRST TASK
+
+
+STEP 0: Advection at first order finite difference
+
+Objective: solving the 1D advection equation d/dt f = - V0 d/dx f
+
+1. Define the domain 0<x<1, with periodic conditions (and ghost cells). Use Nx=100 points to begin with.
+
+2. The advection velocity is V0=1. This defines the timestep by the CFL condition. Use delta_t = 0.5 delta_x/V0.
+
+3. Because V0>0, be careful to define the gradient d/dx f in a upstream way using finite difference.
+
+4. Perform the time integration with a first order explicit scheme.
+
+5. Test different initial profiles of f: (i) a step function f_0(x) = 1 if x<0.4, 2 if 0.4<x<0.6, 1 if x>0.6 (ii) a gaussian f_0(x) = 1 + exp(-(x-0.5)^2/0.1^2)
+
+6. Explore the evolution over different timescales (number of times it crosses the box), under different resolutions (Nx=100, 200, 500,...). Discuss the diffusion, stability and accuracy of the scheme.
+
+
+STEP 1: Advection at second order finite volume (MUSCL)
+
+Objective: solving the 1D advection equation d/dt f = - V0 d/dx f
+
+1. Define the domain 0<x<1, with periodic conditions (and ghost cells). Use Nx=100 cells to begin with.
+
+2. The advection velocity is V0=1. This defines the timestep by the CFL condition. Use delta_t = 0.5 delta_x/V0.
+
+3. Use the 2d order MUSCL scheme: f(x, t+delta_t) = f(x, t) -delta_t*V0*[f_R(x+delta_x/2, t+delta_t/2) - f_R(x-delta_x/2, t+delta_t/2)], where f_R is the solution of the Riemann problem at the cell interface
+
+4. To estimate f(x+-delta_x/2, t+delta_t/2), reconstruct f(x, t) on each cell by a linear function. The slope is given by a slope limiter (Minmod, Van Leer). Then move this linear function to the right (V0>0) by a distance V0*delta_t/2. The result provides estimates of the states at f(x+delta_x/2, t+delta_t/2) and f(x-delta_x/2, t+delta_t/2).
+
+5. At each cell interface one has two estimates of f at t+delta_t/2: one from the cell on the left, one from the cell on the right. The solution of the flux, f_R, is the value from the cell upstream ( left if V0>0 )
+
+6. Test different initial profiles of f: (i) a step function f(x) = 1 if x<0.4, 2 if 0.4<x<0.6, 1 if x>0.6 (ii) a gaussian f(x) = 1 + exp(-(x-0.5)^2/0.1^2)
+
+7. Explore the evolution over different timescales (number of times it crosses the box), under different resolutions (Nx=100, 200, 500,...), using different slope limiters (Minmod, van Leer). Discuss the diffusion, stability and accuracy of the scheme.
+
+8. Compare with the result of STEP 0
+
+
+SECOND TASK
+
+Diffusion equation at second order
+
+1. Use the same grid, and same timestep as a start. Use the same initial profiles of f.
+
+2. Discretize the second derivative with finite differences.
+
+3. Integrate in time with second order RK. Compute the seconde derivative at each intermediate step.
+
+4. Test different values of D: from 10^-3 to 1. Test different time steps: a typical value is delta_x^2/D. Change the resolution to the Nx values used in the advection setups. (first task)
+
+5. Compare with the numerical diffusion you obtain in the advection setups. Can you estimate the equivalent diffusion coefficient D ?
+
+
+THIRD TASK
+
+Advection-diffusion: heat conducting fluid (f represents the temperature)
+
+Objective: solving the advection diffusion equation d/dt f = -V0 d/dx f + D d^2/dx^2 f, at second order
+
+1. Using the same grids and profiles.
+
+2. Combine the two schemes (for advection, and for diffusion) using the operator splitting technique:
+
+2.1 Solve d/dt f = -D d^2/dx^2 f, over a duration delta_t/2
+
+2.2 From the result of 2.1, solve d/dt f = - V0 d/dx f over a duration delta_t (with the 2d order MUSCL scheme)
+
+2.3 From the result of 2.2, solve d/dt f = -D d^2/dx^2 f, over a duration delta_t/2
+
+3. Explore the effect of resolution, diffusion coefficient, time step estimate (CFL or diffusion?).
+
+
+OPTIONAL TASK
+
+Advection in 2D
+
+Objective: perform the advection on a 2D cartesian grid with MUSCL
+
+1. Construct a 2D periodic grid in the domain 0<x<1 and 0<y<1, with Nx and Ny cells. By simplicity, assume Ny=Nx.
+
+2. The advection velocity V0 will now be a vector of components Vx and Vy. The advection equation becomes: d/dt f = -Vx d/dx f - Vy d/dy f
+
+3. To solve the 2D advection, use the operator splitting method, as described in Task 3, now using the x-advection, then y-advection, then x-advection. (you can also switch the direction y,x,y)
+
+4. Test different advection velocity: (i) Vx = 1, Vy= 0 (ii) Vx=0, Vy=1 (iii) Vx=sqrt(2)/2, Vy=sqrt(2)/2
+
+5. CFL condition: Use delta_t = 0.5 delta_x*delta_y/sqrt( (delta_x*Vx)^2 + (delta_y*Vy)^2 )
+
+6. Use 2D version of the initial conditions (step and gaussian). In addition, you can also test other initial profiles (be careful with the periodicity)
+
+7. Explore the evolution over different timescales (number of times it crosses the box), under different resolutions (Nx=100, 200, 500,...), using different slope limiters (Minmod, van Leer). Discuss the diffusion, stability and accuracy of the scheme.
