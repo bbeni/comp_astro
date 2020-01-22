@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pandas as pd
 import numpy as np
 
@@ -14,10 +16,11 @@ df = df.sort_values(by=['r'])
 print(df)
 
 
-cutoff_r = 10
+cutoff_r = 5
 
 r_space = np.linspace(0.1,cutoff_r,1000)
 def analytical_solution(r_space):
+	# ernquist density
 	y = []
 	G = 1
 	for r in r_space:
@@ -31,8 +34,11 @@ cutmask1 = df.r < cutoff_r
 cutmask2 = r_space < cutoff_r
 
 
-plt.plot(df.r[cutmask1], df.acc[cutmask1], '.')
-plt.plot(r_space[cutmask2], analytical_solution(r_space)[cutmask2])
+plt.plot(df.r[cutmask1], df.acc[cutmask1], '.', label='numerical solution')
+plt.plot(r_space[cutmask2], analytical_solution(r_space)[cutmask2], label='analytical solution (erquist)')
+plt.xlabel("Radius")
+plt.ylabel("acceleration |a|")
+plt.legend()
 plt.show()
 #print(df)
 #print(df.ax)

@@ -4,6 +4,39 @@
 #include <string>
 #include <cmath>
 
+/*
+
+Hermite 4th order
+
+neeed a-dot
+
+predictor step
+
+xp = x0 + v0 dt + 1/2 a0 dt^2 + 1/6 a0. dt^3
+xp. = x0. + a0 dt + 1/2 a0. dt^2
+
+evaluator step
+vector quantities: rij, vij, aij
+xp. und xp -> rij und vij
+
+ai = sum(mj rij / xij^3)
+ai. = sum(mj vij / xij^3 - 3 alphaij aij)
+
+corrector step (alles vector)
+x1. = x0. + 1/2(a0+a1) dt + 1/12(a0. - a1.)dt^2
+x1 = x0 + 1/2(x0.+x1.) dt + 1/12(a0 - a1)dt^2
+
+trick is: first compute x1. then use it for evaluation corrected x1
+
+best performing criterion for timestep dti
+dti = (eta (|ai||ai..| + |ai.|^2) / (|ai.||ai...| + |ai..|))^1/2
+
+
+plummer softening S(rij, epsilon) = -1/sqrt(rij^2 + epsilon^2)
+
+*/
+
+
 using namespace std;
 
 typedef struct Particle
@@ -20,9 +53,20 @@ typedef struct Particle
 	float softening;
 	float potential;
 
-
-
 } Particle;
+
+Particle new_particle()
+{
+  // make sure all member variables are initialized to 0!
+  Particle p = {.m=0,
+                .x=0, .y=0, .z=0,
+                .vx=0, .vy=0, .vz=0,
+                .ax=0, .ay=0, .az=0,
+                .r=0,
+                .softening=0,
+                .potential=0};
+  return p;
+}
 
 void particles_to_csv(std::vector<Particle> particles, string filename)
 {
@@ -64,7 +108,7 @@ vector<Particle> read_particle_data(string filename)
     // add n empty particles
     for (int i=0; i<n; i++)
     {
-      Particle p;
+      Particle p = new_particle();
       particles.push_back(p);
     }
 
@@ -181,8 +225,8 @@ void calc_direct_force(std::vector<Particle>& p)
       az += it->m * rz / under;
     }
 
-    int step = base - p.begin();
-    cout << "step " << step << " " << ax << " " << ay << " " << az << endl;
+    //int particle_nr = base - p.begin();
+    //cout << "particle nr " << particle_nr << " " << ax << " " << ay << " " << az << endl;
     //cout << base - p.begin() << endl; 
 
     base->ax = ax;
