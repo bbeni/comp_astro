@@ -39,7 +39,7 @@ plummer softening S(rij, epsilon) = -1/sqrt(rij^2 + epsilon^2)
 
 using namespace std;
 
-#define DT 0.0001
+#define DT 0.000001
 
 typedef struct Particle
 {
@@ -299,12 +299,13 @@ void hermite_evaluate(std::vector<Particle>& particles)
 
       float under = pow(rsquared + base.softening*base.softening, 3.0/2.0);
 
-      base.axn += it.m * rx / under;
-      base.ayn += it.m * ry / under;
-      base.azn += it.m * rz / under;
-      base.jxn += it.m * vx / under - 3 * alphaij * (it.ax-base.ax);
-			base.jyn += it.m * vy / under - 3 * alphaij * (it.ay-base.ay);
-			base.jzn += it.m * vz / under - 3 * alphaij * (it.az-base.az);
+      // G = 1
+      base.axn -= it.m * rx / under;
+      base.ayn -= it.m * ry / under;
+      base.azn -= it.m * rz / under;
+      base.jxn -= it.m * vx / under - 3 * alphaij * (it.ax-base.ax);
+			base.jyn -= it.m * vy / under - 3 * alphaij * (it.ay-base.ay);
+			base.jzn -= it.m * vz / under - 3 * alphaij * (it.az-base.az);
     }
 	}
 }

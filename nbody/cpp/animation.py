@@ -20,10 +20,16 @@ def plot_snapshot(filename):
 	plt.plot(x, y, '.')
 
 
-plot_snapshot('initial.csv')
-plot_snapshot('snapshot0.csv')
-plot_snapshot('snapshot1.csv')
-plot_snapshot('snapshot2.csv')
+#plot_snapshot('initial.csv')
+#plot_snapshot('snapshot0.csv')
+#plot_snapshot('snapshot1.csv')
+#plot_snapshot('snapshot2.csv')
+#plot_snapshot('snapshot3.csv')
+plot_snapshot('snapshot4.csv')
+plot_snapshot('snapshot5.csv')
+plot_snapshot('snapshot6.csv')
+
+
 
 plt.show()
 

@@ -97,6 +97,8 @@ errors = np.sqrt(bins)
 rho = np.array(bins)/np.array(volumes) * average_mass_per_bin
 errors = errors/np.array(volumes) * average_mass_per_bin
 
+errors[errors == 0] = 0.0000000001
+
 print(rho[:30])
 
 M = np.sum(star_df.m)
@@ -106,7 +108,7 @@ def hernquist_density(r, a):
 
 from scipy.optimize import curve_fit
 
-popt, pcov = curve_fit(hernquist_density, mid_space, rho)
+popt, pcov = curve_fit(hernquist_density, mid_space, rho, sigma=errors)
 a = popt[0]
 print("a = ", a)
 
