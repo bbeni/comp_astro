@@ -26,7 +26,7 @@ def load_all_snapshots(every=1, end=-1):
 	positions = np.array(positions)
 	return dfs, positions
 
-dfs, positions = load_all_snapshots(every=1)
+dfs, positions = load_all_snapshots(every=10, end=10000)
 print(positions.shape)
 
 
@@ -82,11 +82,11 @@ plot_energies()
 
 # plot
 
-for particle_nr in range(2):
+for particle_nr in range(20):
 	x = positions[:, particle_nr, 0]
 	y = positions[:, particle_nr, 1]
 
-	plt.plot(x, y, 'x')
+	plt.plot(x, y, '--')
 	#plt.scatter(x, y)
 
 plt.show()
@@ -130,7 +130,7 @@ def plot_particle_3d(particle_nr):
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-for i in range(2):
+for i in range(10):
 	plot_particle_3d(i)
 
 ax.set_xlabel('X Label')

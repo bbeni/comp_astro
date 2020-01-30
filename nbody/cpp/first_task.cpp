@@ -40,9 +40,9 @@ plummer softening S(rij, epsilon) = -1/sqrt(rij^2 + epsilon^2)
 using namespace std;
 
 
-#define NSTEPS 2000
-#define eta 0.1 // accuracy
-//#define SOFTENING 0.0004
+#define NSTEPS 10000
+#define eta 0.2 // accuracy
+#define SOFTENING 0.004
 
 typedef struct Particle
 {
@@ -137,8 +137,9 @@ vector<Particle> read_particle_data(string filename)
     std::vector<Particle>::size_type i;
     // masses
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
+      cout << line << endl;
       double m = stof(line);
       particles[i].m = m;
       i++;
@@ -146,7 +147,7 @@ vector<Particle> read_particle_data(string filename)
 
     // x
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].x = x;
@@ -155,7 +156,7 @@ vector<Particle> read_particle_data(string filename)
 
     // y
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].y = x;
@@ -164,7 +165,7 @@ vector<Particle> read_particle_data(string filename)
     
     // z
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].z = x;
@@ -173,7 +174,7 @@ vector<Particle> read_particle_data(string filename)
 
     // vx
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].vx = x;
@@ -182,7 +183,7 @@ vector<Particle> read_particle_data(string filename)
 
     // vy
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].vy = x;
@@ -191,7 +192,7 @@ vector<Particle> read_particle_data(string filename)
     
     // vz
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].vz = x;
@@ -200,7 +201,7 @@ vector<Particle> read_particle_data(string filename)
 
     // softening
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].softening = x;
@@ -211,15 +212,20 @@ vector<Particle> read_particle_data(string filename)
     }
     // potential
     i = 0;
-    while ( getline (myfile,line) && i != particles.size())
+    while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
       particles[i].potential = x;
       i++;
     }
-    cout << particles[10].m << endl;
-    cout << particles[11].m << endl;
 
+    cout << "mass p1 " << particles[0].m << endl;
+    cout << "mass p2 " << particles[1].m << endl;
+
+    cout << "v p1 " << particles[0].vx << ", " << particles[0].vy  << ", " << particles[0].vz << endl;
+    cout << "v p2 " << particles[1].vx << ", " << particles[1].vy  << ", " << particles[1].vz << endl;
+    cout << "r p2 " << particles[0].x << ", " << particles[0].y  << ", " << particles[0].z << endl;
+    cout << "r p2 " << particles[1].x << ", " << particles[1].y  << ", " << particles[1].z << endl;
 
     myfile.close();
   }
@@ -249,10 +255,6 @@ void calc_direct_force(std::vector<Particle>& particles)
       ay += it->m * ry / under;
       az += it->m * rz / under;
     }
-
-    //int particle_nr = base - p.begin();
-    //cout << "particle nr " << particle_nr << " " << ax << " " << ay << " " << az << endl;
-    //cout << base - p.begin() << endl; 
 
     base->ax = ax;
     base->ay = ay;
@@ -305,6 +307,13 @@ void hermite_evaluate(std::vector<Particle>& particles, double DT)
 {
 	for(Particle& base : particles)
   {
+    base.axn = 0.0;
+    base.ayn = 0.0;
+    base.azn = 0.0;
+    base.jxn = 0.0;
+    base.jyn = 0.0;
+    base.jzn = 0.0;
+
     for(Particle& it : particles)
     {
       if( &base == &it ) continue;
@@ -316,14 +325,12 @@ void hermite_evaluate(std::vector<Particle>& particles, double DT)
       double vy = base.vyp - it.vyp;
       double vz = base.vzp - it.vzp;
 
-      double rsquared = rx*rx + ry*ry + rz*rz;
-
       double alphaij = (rx*vx + ry*vy + rz*vz);
 
-      double sq = rsquared + base.softening*base.softening;
+      double rsq = rx*rx + ry*ry + rz*rz + base.softening*base.softening;
 
-      double under1 = pow(sq, 3.0/2.0);
-      double under2 = pow(sq, 5.0/2.0);
+      double under1 = pow(rsq, 3.0/2.0);
+      double under2 = pow(rsq, 5.0/2.0);
 
       // G = 1
       base.axn -= it.m * rx / under1;
@@ -351,15 +358,12 @@ void integrate(std::vector<Particle>& particles, double DT)
 
     // calculate scalars
 		p.r = sqrt(pow(p.x, 2) + pow(p.y, 2) + pow(p.z, 2));
-
   }
-
 }
-
 
 int main(int argc, const char* argv[])
 {
-	std::string filename = "data_n2.dat";
+	std::string filename = "data_n128.dat";
 
 	std::vector<Particle> particles = read_particle_data(filename);
 
@@ -377,7 +381,6 @@ int main(int argc, const char* argv[])
 
     std::string fname = "snapshot" + std::string(6 - std::to_string(i).length(), '0') + std::to_string(i) + ".csv";
     cout << "saving snapshot " << fname << " ..." << endl;
-
   	snapshot_to_csv(particles, DT, fname);
   }
 
