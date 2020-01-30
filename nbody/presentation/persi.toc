@@ -1,0 +1,2 @@
+\beamer@sectionintoc {1}{First Task}{3}{0}{1}
+\beamer@sectionintoc {2}{Second Task}{10}{0}{2}

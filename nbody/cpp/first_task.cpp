@@ -39,28 +39,34 @@ plummer softening S(rij, epsilon) = -1/sqrt(rij^2 + epsilon^2)
 
 using namespace std;
 
-#define DT 0.000001
+
+#define NSTEPS 2000
+#define eta 0.1 // accuracy
+//#define SOFTENING 0.0004
 
 typedef struct Particle
 {
-  float m;
-	float x, y, z;
-	float vx, vy, vz;
-  float ax, ay, az;
-  float jx, jy, jz; // jerk - a.
+  double m;
+	double x, y, z;
+	double vx, vy, vz;
+  double ax, ay, az;
+  double jx, jy, jz; // jerk - a.
 
   // perdicted
-  float xp, yp, zp;
-  float vxp, vyp, vzp;
+  double xp, yp, zp;
+  double vxp, vyp, vzp;
 
   // next - from evaluator step
-  float axn, ayn, azn;
-  float jxn, jyn, jzn;
+  double axn, ayn, azn;
+  double jxn, jyn, jzn;
 
-  float r;
+  // calculated scalars
+  double r;
+  //double ekin;
+  //double epot;
 
-	float softening;
-	float potential;
+	double softening;
+	double potential;
 
 } Particle;
 
@@ -70,18 +76,32 @@ Particle new_particle()
   return p;
 }
 
-void snapshot_to_csv(std::vector<Particle> particles, string filename)
+double cmpdt(std::vector<Particle> particles)
+{
+  double DT_min = 10.0;
+  for(Particle& p : particles)
+  {
+    if (p.softening == 0) continue;
+    double dt = eta * sqrt(p.softening/sqrt(p.ax*p.ax + p.ay*p.ay + p.az*p.az));
+    if (dt < DT_min) DT_min = dt;
+  }
+
+  return DT_min;
+}
+
+void snapshot_to_csv(std::vector<Particle> particles, double DT, string filename)
 {
   
   ofstream myfile(filename);
   if (myfile.is_open())
   {
     // header
-    myfile << "m,x,y,z,vx,vy,vz,ax,ay,az,r,softening,potential" << endl;
+    myfile << "m,x,y,z,vx,vy,vz,ax,ay,az,r,softening,potential,dt" << endl;
     for(auto const& p : particles)
     {
       myfile << p.m << ',' << p.x << ',' << p.y << ',' << p.z << ',' << p.vx << ',' << p.vy << ',' << p.vz << ',';
       myfile << p.ax << ',' << p.ay << ',' << p.az << ',' << p.r << ',' << p.softening << ',' << p.potential;
+      myfile << DT;
       myfile << endl;
 
     }
@@ -119,7 +139,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float m = stof(line);
+      double m = stof(line);
       particles[i].m = m;
       i++;
     }
@@ -128,7 +148,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].x = x;
       i++;
     }
@@ -137,7 +157,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].y = x;
       i++;
     }
@@ -146,7 +166,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].z = x;
       i++;
     } 
@@ -155,7 +175,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].vx = x;
       i++;
     }
@@ -164,7 +184,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].vy = x;
       i++;
     }
@@ -173,7 +193,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].vz = x;
       i++;
     }
@@ -182,15 +202,18 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].softening = x;
+#ifdef SOFTENING
+      particles[i].softening = SOFTENING;
+#endif
       i++;
     }
     // potential
     i = 0;
     while ( getline (myfile,line) && i != particles.size())
     {
-      float x = stof(line);
+      double x = stof(line);
       particles[i].potential = x;
       i++;
     }
@@ -207,12 +230,12 @@ vector<Particle> read_particle_data(string filename)
 
 void calc_direct_force(std::vector<Particle>& particles)
 {
-  float rx, ry, rz;
-  float under;
+  double rx, ry, rz;
+  double under;
 
   for(auto base=particles.begin(); base != particles.end(); ++base)
   {
-    float ax=0, ay=0, az=0;
+    double ax=0, ay=0, az=0;
     for(auto it=particles.begin(); it != particles.end(); ++it)
     {
       if( base == it ) continue;
@@ -241,7 +264,7 @@ void calc_direct_force(std::vector<Particle>& particles)
 
 }
 
-void hermite_predict(Particle& p)
+void hermite_predict(Particle& p, double DT)
 {
 	// position
 	p.xp = p.x + p.vx * DT + 0.5 * p.ax * DT*DT + 1.0/6.0 * p.jx * DT*DT*DT;
@@ -254,11 +277,11 @@ void hermite_predict(Particle& p)
 	p.vzp = p.vz + p.az * DT + 0.5 * p.jz * DT*DT;
 }
 
-void hermite_correct(Particle& p)
+void hermite_correct(Particle& p, double DT)
 {
-	float vx1 = p.vx + 1.0/2.0*(p.ax+p.axn) * DT + 1.0/12.0*(p.jx-p.jxn) * DT*DT;
-	float vy1 = p.vy + 1.0/2.0*(p.ay+p.ayn) * DT + 1.0/12.0*(p.jy-p.jyn) * DT*DT;
-	float vz1 = p.vz + 1.0/2.0*(p.az+p.azn) * DT + 1.0/12.0*(p.jz-p.jzn) * DT*DT;
+	double vx1 = p.vx + 1.0/2.0*(p.ax+p.axn) * DT + 1.0/12.0*(p.jx-p.jxn) * DT*DT;
+	double vy1 = p.vy + 1.0/2.0*(p.ay+p.ayn) * DT + 1.0/12.0*(p.jy-p.jyn) * DT*DT;
+	double vz1 = p.vz + 1.0/2.0*(p.az+p.azn) * DT + 1.0/12.0*(p.jz-p.jzn) * DT*DT;
 
 	// new quantities are set
 	p.x = p.x + 1.0/2.0*(p.vx+vx1) * DT + 1.0/12.0*(p.ax-p.axn) * DT*DT;
@@ -278,7 +301,7 @@ void hermite_correct(Particle& p)
 	p.jz = p.jzn;
 }
 
-void hermite_evaluate(std::vector<Particle>& particles)
+void hermite_evaluate(std::vector<Particle>& particles, double DT)
 {
 	for(Particle& base : particles)
   {
@@ -286,64 +309,76 @@ void hermite_evaluate(std::vector<Particle>& particles)
     {
       if( &base == &it ) continue;
       // use the predicted quantities xp, ...
-      float rx = it.xp - base.xp;
-      float ry = it.yp - base.yp;
-      float rz = it.zp - base.zp;
-      float vx = it.vxp - base.vxp;
-      float vy = it.vyp - base.vyp;
-      float vz = it.vzp - base.vzp;
+      double rx = base.xp - it.xp;
+      double ry = base.yp - it.yp;
+      double rz = base.zp - it.zp;
+      double vx = base.vxp - it.vxp;
+      double vy = base.vyp - it.vyp;
+      double vz = base.vzp - it.vzp;
 
-      float rsquared = rx*rx + ry*ry + rz*rz;
+      double rsquared = rx*rx + ry*ry + rz*rz;
 
-      float alphaij = (rx*vx + ry*vy + rz*vz)/rsquared;
+      double alphaij = (rx*vx + ry*vy + rz*vz);
 
-      float under = pow(rsquared + base.softening*base.softening, 3.0/2.0);
+      double sq = rsquared + base.softening*base.softening;
+
+      double under1 = pow(sq, 3.0/2.0);
+      double under2 = pow(sq, 5.0/2.0);
 
       // G = 1
-      base.axn -= it.m * rx / under;
-      base.ayn -= it.m * ry / under;
-      base.azn -= it.m * rz / under;
-      base.jxn -= it.m * vx / under - 3 * alphaij * (it.ax-base.ax);
-			base.jyn -= it.m * vy / under - 3 * alphaij * (it.ay-base.ay);
-			base.jzn -= it.m * vz / under - 3 * alphaij * (it.az-base.az);
+      base.axn -= it.m * rx / under1;
+      base.ayn -= it.m * ry / under1;
+      base.azn -= it.m * rz / under1;
+      base.jxn -= it.m * (vx / under1 - 3 * alphaij * rx / under2);
+			base.jyn -= it.m * (vy / under1 - 3 * alphaij * ry / under2);
+			base.jzn -= it.m * (vz / under1 - 3 * alphaij * rz / under2);
     }
 	}
 }
 
-void integrate(std::vector<Particle>& particles)
+void integrate(std::vector<Particle>& particles, double DT)
 {
 	for(Particle& p : particles)
 	{
-		hermite_predict(p);
+		hermite_predict(p, DT);
 	}
 
-	hermite_evaluate(particles);
+	hermite_evaluate(particles, DT);
 
 	for(Particle& p : particles)
 	{
-		hermite_correct(p);
+		hermite_correct(p, DT);
+
+    // calculate scalars
 		p.r = sqrt(pow(p.x, 2) + pow(p.y, 2) + pow(p.z, 2));
 
-	}
+  }
 
 }
 
 
 int main(int argc, const char* argv[])
 {
-	std::string filename = "data.ascii";
+	std::string filename = "data_n2.dat";
 
 	std::vector<Particle> particles = read_particle_data(filename);
 
-  //calc_direct_force(particles);
-  //snapshot_to_csv(particles, "test.csv");
+  calc_direct_force(particles);
 
-  for(int i = 0; i < 200; i++)
+  for(int i = 0; i < NSTEPS; i++)
   {
   	cout << "step " << i << endl;
-  	integrate(particles);
-  	cout << "saving snapshot..." << endl;
-  	snapshot_to_csv(particles, "snapshot" + std::to_string(i) + ".csv");
+
+    double DT = cmpdt(particles);
+
+  	integrate(particles, DT);
+    
+    cout << "DT is " << DT << endl;
+
+    std::string fname = "snapshot" + std::string(6 - std::to_string(i).length(), '0') + std::to_string(i) + ".csv";
+    cout << "saving snapshot " << fname << " ..." << endl;
+
+  	snapshot_to_csv(particles, DT, fname);
   }
 
 }

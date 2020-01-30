@@ -108,7 +108,7 @@ def hernquist_density(r, a):
 
 from scipy.optimize import curve_fit
 
-popt, pcov = curve_fit(hernquist_density, mid_space, rho, sigma=errors)
+popt, pcov = curve_fit(hernquist_density, mid_space, rho)
 a = popt[0]
 print("a = ", a)
 
@@ -117,8 +117,11 @@ high_res_space = np.linspace(step/2, 0.09, 300)
 
 
 plt.yscale('log')
-plt.errorbar(mid_space[:50], rho[:50], yerr=errors[:50], fmt=".")
-plt.plot(high_res_space, hernquist_density(high_res_space, a))
+plt.errorbar(mid_space[:50], rho[:50], yerr=errors[:50], fmt=".", label='spherical shell bins -> density')
+plt.plot(high_res_space, hernquist_density(high_res_space, a), label='hernquist density profile')
+plt.xlabel('radius r')
+plt.ylabel('density $\\rho (r)$')
+plt.legend()
 plt.show()
 
 
