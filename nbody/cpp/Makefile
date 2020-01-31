@@ -1,11 +1,14 @@
 CC=g++
 CFLAGS=-I. -std=c++14 -O3 -ffast-math
 
-all: first_task.o
-	$(CC) $(CFLAGS) -o first_task first_task.o
+all: hermite.o
+	$(CC) $(CFLAGS) -o hermite hermite.o
 
-first_task.o: first_task.cpp
-	$(CC) $(CFLAGS) -c first_task.cpp
+hermite.o: hermite.cpp
+	$(CC) $(CFLAGS) -c hermite.cpp
 
 clean:
-	rm first_task first_task.o 
+	rm hermite hermite.o 
+
+rmsnaps:
+	rm snapshot*.csv

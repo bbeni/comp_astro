@@ -5,43 +5,10 @@
 #include <cmath>
 #include <cassert>
 
-/*
-
-Hermite 4th order
-
-neeed a-dot
-
-predictor step
-
-xp = x0 + v0 dt + 1/2 a0 dt^2 + 1/6 a0. dt^3
-xp. = x0. + a0 dt + 1/2 a0. dt^2
-
-evaluator step
-vector quantities: rij, vij, aij
-xp. und xp -> rij und vij
-
-ai = sum(mj rij / xij^3)
-ai. = sum(mj vij / xij^3 - 3 alphaij aij)
-
-corrector step (alles vector)
-x1. = x0. + 1/2(a0+a1) dt + 1/12(a0. - a1.)dt^2
-x1 = x0 + 1/2(x0.+x1.) dt + 1/12(a0 - a1)dt^2
-
-trick is: first compute x1. then use it for evaluation corrected x1
-
-best performing criterion for timestep dti
-dti = (eta (|ai||ai..| + |ai.|^2) / (|ai.||ai...| + |ai..|))^1/2
-
-
-plummer softening S(rij, epsilon) = -1/sqrt(rij^2 + epsilon^2)
-
-*/
-
-
 using namespace std;
 
-
-#define NSTEPS 2000
+// compile time parameters
+#define NSTEPS 200
 #define eta 0.2 // accuracy
 #define SOFTENING 0.004
 
@@ -140,19 +107,17 @@ void snapshot_to_csv(std::vector<Particle> particles, double DT, string filename
   if (myfile.is_open())
   {
     // header
-    myfile << "m,x,y,z,vx,vy,vz,ax,ay,az,r,softening,potential,dt" << endl;
+    myfile << "m,x,y,z,vx,vy,vz,ax,ay,az,r,softening,potential" << endl;
     for(auto const& p : particles)
     {
       myfile << p.m << ',' << p.x << ',' << p.y << ',' << p.z << ',' << p.vx << ',' << p.vy << ',' << p.vz << ',';
       myfile << p.ax << ',' << p.ay << ',' << p.az << ',' << p.r << ',' << p.softening << ',' << p.potential;
-      myfile << DT;
       myfile << endl;
 
     }
     myfile.close();
   } 
-  else cout << "Unable to open file" << endl;
-
+  else cout << "Unable to open file: " << filename << endl;
 }
 
 
@@ -183,8 +148,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double m = stof(line);
-      particles[i].m = m;
+      particles[i].m = stof(line);
       i++;
     }
 
@@ -192,8 +156,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].x = x;
+      particles[i].x = stof(line);
       i++;
     }
 
@@ -201,8 +164,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].y = x;
+      particles[i].y = stof(line);
       i++;
     }
     
@@ -210,8 +172,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].z = x;
+      particles[i].z = stof(line);
       i++;
     } 
 
@@ -219,8 +180,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].vx = x;
+      particles[i].vx = stof(line);
       i++;
     }
 
@@ -228,8 +188,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].vy = x;
+      particles[i].vy = stof(line);
       i++;
     }
     
@@ -237,8 +196,7 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].vz = x;
+      particles[i].vz = stof(line);
       i++;
     }
 
@@ -246,11 +204,10 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
 #ifdef SOFTENING
       particles[i].softening = SOFTENING;
 #else
-      particles[i].softening = x;
+      particles[i].softening = stof(line);
 #endif
       i++;
     }
@@ -258,23 +215,14 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      double x = stof(line);
-      particles[i].potential = x;
+      particles[i].potential = stof(line);
       i++;
     }
-
-    cout << "mass p1 " << particles[0].m << endl;
-    cout << "mass p2 " << particles[1].m << endl;
-
-    cout << "v p1 " << particles[0].vx << ", " << particles[0].vy  << ", " << particles[0].vz << endl;
-    cout << "v p2 " << particles[1].vx << ", " << particles[1].vy  << ", " << particles[1].vz << endl;
-    cout << "r p2 " << particles[0].x << ", " << particles[0].y  << ", " << particles[0].z << endl;
-    cout << "r p2 " << particles[1].x << ", " << particles[1].y  << ", " << particles[1].z << endl;
 
     myfile.close();
   }
 
-  else cout << "Unable to open file";
+  else cout << "Unable to open file " << filename << endl;
   return particles;
 }
 
@@ -301,12 +249,12 @@ void calc_direct_force(std::vector<Particle>& particles)
 
 void hermite_predict(Particle& p, double DT)
 {
-	// position
+	// predicted position
 	p.xp = p.x + p.vx * DT + 0.5 * p.ax * DT*DT + 1.0/6.0 * p.jx * DT*DT*DT;
 	p.yp = p.y + p.vy * DT + 0.5 * p.ay * DT*DT + 1.0/6.0 * p.jy * DT*DT*DT;
 	p.zp = p.z + p.vz * DT + 0.5 * p.az * DT*DT + 1.0/6.0 * p.jz * DT*DT*DT;
 
-	// velocity
+	// predicted velocity
 	p.vxp = p.vx + p.ax * DT + 0.5 * p.jx * DT*DT;
 	p.vyp = p.vy + p.ay * DT + 0.5 * p.jy * DT*DT;
 	p.vzp = p.vz + p.az * DT + 0.5 * p.jz * DT*DT;
@@ -340,19 +288,14 @@ void hermite_evaluate(std::vector<Particle>& particles, double DT)
 {
 	for(Particle& base : particles)
   {
-    base.axn = 0.0;
-    base.ayn = 0.0;
-    base.azn = 0.0;
-    base.jxn = 0.0;
-    base.jyn = 0.0;
-    base.jzn = 0.0;
-
+    base.axn = 0.0; base.ayn = 0.0; base.azn = 0.0;
+    base.jxn = 0.0; base.jyn = 0.0; base.jzn = 0.0;
     base.epot = 0.0;
 
     for(Particle& it : particles)
     {
       if( &base == &it ) continue;
-      // use the predicted quantities xp, ...
+      // use the predicted quantities ...
       double rx = base.xp - it.xp;
       double ry = base.yp - it.yp;
       double rz = base.zp - it.zp;
