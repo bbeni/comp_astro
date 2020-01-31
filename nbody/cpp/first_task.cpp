@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <cassert>
 
 /*
 
@@ -40,7 +41,7 @@ plummer softening S(rij, epsilon) = -1/sqrt(rij^2 + epsilon^2)
 using namespace std;
 
 
-#define NSTEPS 10000
+#define NSTEPS 2000
 #define eta 0.2 // accuracy
 #define SOFTENING 0.004
 
@@ -62,13 +63,56 @@ typedef struct Particle
 
   // calculated scalars
   double r;
-  //double ekin;
-  //double epot;
+  double ekin;
+  double epot;
 
-	double softening;
+  double softening;
 	double potential;
 
 } Particle;
+
+class SimulationTracker
+{
+  public:
+    std::vector<double> time_steps;
+    std::vector<double> kinetic_energy;
+    std::vector<double> potential_energy;
+
+    void store_dt(double dt){time_steps.push_back(dt);}
+    void store_energies(std::vector<Particle> const & particles)
+    {
+      double ekin = 0, epot = 0;
+      for (Particle const & p : particles)
+      {
+        ekin += p.ekin;
+        epot += p.epot;
+      }
+      kinetic_energy.push_back(ekin);
+      potential_energy.push_back(epot);
+    }
+
+    SimulationTracker(){}
+
+    void save_to_csv(std::string filename)
+    {
+      assert(time_steps.size() == kinetic_energy.size());
+      assert(time_steps.size() == potential_energy.size());
+
+      ofstream myfile(filename);
+      if (myfile.is_open())
+      {
+        myfile << "dt,e_kin,e_pot" << endl;
+        for(int i=0; i<time_steps.size();i++)
+        {
+          myfile << time_steps[i] << ",";
+          myfile << kinetic_energy[i] << ",";
+          myfile << potential_energy[i] << endl;
+        }
+        myfile.close();
+      }
+      else cout << "unable to write to csv: " << filename << endl;
+    }
+};
 
 Particle new_particle()
 {
@@ -139,7 +183,6 @@ vector<Particle> read_particle_data(string filename)
     i = 0;
     while (i != particles.size() && getline (myfile,line))
     {
-      cout << line << endl;
       double m = stof(line);
       particles[i].m = m;
       i++;
@@ -204,9 +247,10 @@ vector<Particle> read_particle_data(string filename)
     while (i != particles.size() && getline (myfile,line))
     {
       double x = stof(line);
-      particles[i].softening = x;
 #ifdef SOFTENING
       particles[i].softening = SOFTENING;
+#else
+      particles[i].softening = x;
 #endif
       i++;
     }
@@ -236,34 +280,23 @@ vector<Particle> read_particle_data(string filename)
 
 void calc_direct_force(std::vector<Particle>& particles)
 {
-  double rx, ry, rz;
-  double under;
-
   for(auto base=particles.begin(); base != particles.end(); ++base)
   {
-    double ax=0, ay=0, az=0;
+    base->ax=0; base->ay=0; base->az=0;
     for(auto it=particles.begin(); it != particles.end(); ++it)
     {
       if( base == it ) continue;
-      rx = base->x - it->x;
-      ry = base->y - it->y;
-      rz = base->z - it->z;
+      double rx = base->x - it->x;
+      double ry = base->y - it->y;
+      double rz = base->z - it->z;
 
-      under = pow(rx*rx + ry*ry + rz*rz + base->softening*base->softening, 3.0/2.0);
+      double under = pow(rx*rx + ry*ry + rz*rz + base->softening*base->softening, 3.0/2.0);
 
-      ax += it->m * rx / under;
-      ay += it->m * ry / under;
-      az += it->m * rz / under;
+      base->ax += it->m * rx / under;
+      base->ay += it->m * ry / under;
+      base->az += it->m * rz / under;
     }
-
-    base->ax = ax;
-    base->ay = ay;
-    base->az = az;
-
-    base->r = sqrt(pow(base->x, 2) + pow(base->y, 2) + pow(base->z, 2));
-
   }
-
 }
 
 void hermite_predict(Particle& p, double DT)
@@ -314,6 +347,8 @@ void hermite_evaluate(std::vector<Particle>& particles, double DT)
     base.jyn = 0.0;
     base.jzn = 0.0;
 
+    base.epot = 0.0;
+
     for(Particle& it : particles)
     {
       if( &base == &it ) continue;
@@ -339,6 +374,10 @@ void hermite_evaluate(std::vector<Particle>& particles, double DT)
       base.jxn -= it.m * (vx / under1 - 3 * alphaij * rx / under2);
 			base.jyn -= it.m * (vy / under1 - 3 * alphaij * ry / under2);
 			base.jzn -= it.m * (vz / under1 - 3 * alphaij * rz / under2);
+
+      // add up potential energy half of it since we count two times
+      base.epot -= 0.5*it.m*base.m/sqrt(rsq);
+
     }
 	}
 }
@@ -358,15 +397,19 @@ void integrate(std::vector<Particle>& particles, double DT)
 
     // calculate scalars
 		p.r = sqrt(pow(p.x, 2) + pow(p.y, 2) + pow(p.z, 2));
+    p.ekin = 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy + p.vz*p.vz);
   }
 }
 
 int main(int argc, const char* argv[])
 {
-	std::string filename = "data_n128.dat";
 
+  SimulationTracker simulation_tracker;
+
+	std::string filename = "data_n128.dat";
 	std::vector<Particle> particles = read_particle_data(filename);
 
+  // make sure we have something in p.ax, etc to calculate dt !!
   calc_direct_force(particles);
 
   for(int i = 0; i < NSTEPS; i++)
@@ -374,14 +417,18 @@ int main(int argc, const char* argv[])
   	cout << "step " << i << endl;
 
     double DT = cmpdt(particles);
+    simulation_tracker.store_dt(DT);
+    cout << "DT is " << DT << endl;
 
   	integrate(particles, DT);
-    
-    cout << "DT is " << DT << endl;
+    simulation_tracker.store_energies(particles);
+
 
     std::string fname = "snapshot" + std::string(6 - std::to_string(i).length(), '0') + std::to_string(i) + ".csv";
     cout << "saving snapshot " << fname << " ..." << endl;
   	snapshot_to_csv(particles, DT, fname);
   }
+
+  simulation_tracker.save_to_csv("simulation_track.csv");
 
 }

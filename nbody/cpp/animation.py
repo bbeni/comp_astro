@@ -9,6 +9,28 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
+tracking_df = pd.read_csv("simulation_track.csv")
+print(tracking_df)
+
+etot = tracking_df["e_pot"] + tracking_df["e_kin"]
+
+plt.plot( tracking_df["e_kin"], label="ekin")
+plt.plot( tracking_df["e_pot"], label="epot")
+plt.plot( etot, label="e")
+plt.xlabel('#time step')
+plt.ylabel('Energy')
+plt.legend()
+
+plt.show()
+
+plt.plot(etot/etot[0])
+plt.ylabel("dE/E")
+plt.xlabel("t")
+
+plt.show()
+
+
+
 
 def load_all_snapshots(every=1, end=-1):
 	files = glob.glob('snapshot*.csv')
@@ -50,7 +72,7 @@ def plot_energies():
 					continue
 				xij = pos[i] - pos[j]
 				underij = np.sum(np.square(xij)) + np.square(epsilon[i])
-				e_pot -= m[i]*m[j]/underij	# G = 1
+				e_pot -= m[i]*m[j]/np.sqrt(underij)	# G = 1
 
 		e_pots.append(e_pot)
 
@@ -77,7 +99,7 @@ def plot_energies():
 	plt.ylabel('Energy')
 	plt.show()
 
-plot_energies()
+#plot_energies()
 
 
 # plot
@@ -116,7 +138,7 @@ ani = FuncAnimation(fig, update, frames=range(positions.shape[0]),
 plt.show()
 
 
-# 3d plot not working
+# 3d plot
 
 def plot_particle_3d(particle_nr):
 	xs = positions[:, particle_nr, 0]
