@@ -8,7 +8,7 @@
 using namespace std;
 
 // compile time parameters
-#define NSTEPS 200
+#define NSTEPS 2000
 #define eta 0.2 // accuracy
 #define SOFTENING 0.004
 
@@ -355,13 +355,16 @@ int main(int argc, const char* argv[])
   // make sure we have something in p.ax, etc to calculate dt !!
   calc_direct_force(particles);
 
+  double total_time = 0;
+
   for(int i = 0; i < NSTEPS; i++)
   {
   	cout << "step " << i << endl;
 
     double DT = cmpdt(particles);
+    total_time += DT;
     simulation_tracker.store_dt(DT);
-    cout << "DT is " << DT << endl;
+    cout << "DT is " << DT << "\t\t\t\t\t total time now: " << total_time << endl;
 
   	integrate(particles, DT);
     simulation_tracker.store_energies(particles);
